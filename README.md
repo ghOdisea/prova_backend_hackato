@@ -46,7 +46,7 @@ Desenvolupar una API per a una aplicació web que gestioni usuaris i activitats.
 1. Clona este repositorio:
 
    ```bash
-   git clone https://github.com/ghOdisea/PROVA_BACKEND_HACKATO.git
+   git clone https://github.com/ghOdisea/prova_backend_hackato.git
    ```
 
 2. Instala las dependencias:
