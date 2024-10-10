@@ -137,7 +137,7 @@ export const deleteActivity = catchErrors(async (req: Request, res: Response) =>
 
       appAssert(activityID, BAD_REQUEST, 'Activity not deleted')
 
-      res.status(OK).json(activityID)
+      res.status(OK).json({message: "Activity deleted", id: activityID, activity: activity.name})
 }
 )
 
