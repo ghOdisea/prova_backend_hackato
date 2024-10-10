@@ -1,0 +1,33 @@
+GET http://localhost:3000/users/health HTTP/1.1
+
+###
+GET http://localhost:3000/activities/health HTTP/1.1
+
+###
+GET http://localhost:3000/users/all HTTP/1.1
+
+###
+GET http://localhost:3000/users/6707bf1a70dd62f6f0f475b6 HTTP/1.1
+###
+POST http://localhost:3000/users/ HTTP/1.1
+Content-Type: application/json
+
+{
+      "name":"DO-NOT-DELETE",
+      "lastName":"DO-NOT-DELETE",
+      "email":"DO-NOT-DELETE@email.com"
+}
+###
+PATCH http://localhost:3000/users/6707bf1a70dd62f6f0f475b6 HTTP/1.1
+Content-Type: application/json
+
+{
+      "name":"patchingName",
+      "lastName":"patchingLastName",
+      "email":"patch-test@email.com"
+}
+
+###
+DELETE http://localhost:3000/users/670825806ead1ba5d229118a HTTP/1.1
+
+###
