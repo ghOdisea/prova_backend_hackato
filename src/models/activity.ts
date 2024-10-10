@@ -2,9 +2,10 @@ import mongoose from "mongoose";
 
 
 export interface IActivity {
-      name: string;
-      description: string;
-      capacity: number;
+      name: string,
+      description: string,
+      capacity: number,
+      suscribers?: mongoose.Types.ObjectId[]
 }
 
 const activitySchema = new mongoose.Schema({
@@ -19,9 +20,14 @@ const activitySchema = new mongoose.Schema({
       capacity: {
             type: Number,
             required: true
+      },
+      suscribers: {
+            type: [mongoose.Schema.Types.ObjectId],
+            ref: "User",
+            default: []
       }
 })
 
-const Activity = mongoose.model<IActivity>("Activity", activitySchema);
+const Activity = mongoose.model<IActivity>("Activity", activitySchema)
 
 export default Activity

@@ -4,6 +4,7 @@ import { BAD_REQUEST, CONFLICT, NOT_FOUND, OK } from "../constants/http"
 import appAssert from "../utils/appAssert"
 import catchErrors from "../utils/catchErrors"
 import mongoose from "mongoose"
+import correct from "../utils/validateId"
 
 export const healthCheck = (_: Request, res: Response) => {
       res.status(OK).json({ 
@@ -13,8 +14,7 @@ export const healthCheck = (_: Request, res: Response) => {
 export const getUser = catchErrors( async (req: Request, res: Response) => {
       const { id } = req.params
 
-      const validId = mongoose.Types.ObjectId.isValid(id)
-      if (!validId) {
+      if (!correct(id)) {
             return res.status(BAD_REQUEST).json({ 
                   message: "Id not valid" 
             })
@@ -61,7 +61,6 @@ export const createUser = catchErrors(async (req: Request, res:Response) => {
 
       const newUser = await User.create({ name, lastName, email })
       const userID = newUser._id
-      // console.log("hola")
       appAssert(newUser, BAD_REQUEST, 'User not created')
       await newUser.save()
 
@@ -69,7 +68,14 @@ export const createUser = catchErrors(async (req: Request, res:Response) => {
 }
 )
 export const updateUser = catchErrors(async (req: Request, res: Response) => {
-      const id = req.params.id
+      const { id } = req.params
+
+      if (!correct(id)) {
+            return res.status(BAD_REQUEST).json({ 
+                  message: "Id not valid" 
+            })
+      }
+
       const { name, lastName, email } = req.body
       if (!name || !lastName || !email) {
             return res.status(NOT_FOUND).json({
@@ -110,6 +116,6 @@ export const deleteUser = catchErrors(async (req: Request, res: Response) => {
       const userID = deletedUser?._id
 
       appAssert(deletedUser, NOT_FOUND, 'User not deleted')
-      res.status(OK).json(userID)
+      res.status(OK).json({message: "User deleted", id: userID})
 }
 )

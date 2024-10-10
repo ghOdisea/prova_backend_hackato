@@ -1,28 +1,41 @@
 import { Request, Response } from "express"
 import Activity from "../../models/Activity"
-import { NOT_FOUND, OK } from "../constants/http"
+import { BAD_REQUEST, CONFLICT, NOT_FOUND, OK } from "../constants/http"
+import catchErrors from "../utils/catchErrors"
+import mongoose from "mongoose"
+import appAssert from "../utils/appAssert"
+import correct from "../utils/validateId"
 
 export const healthCheck = (_: Request, res: Response) => {
       res.status(OK).json({ 
             message: "Activities route is up and running" 
       })
 }
-export const getActivities = async (_: Request, res: Response) => {
+export const getActivities = catchErrors(async (_: Request, res: Response) => {
       
       const activities = await Activity.find()
       if (activities.length === 0) {
-            res.status(OK).json({ message: "No activities found" })
+            return res.status(OK).json([])
       }
 
       res.status(OK).json(activities)
 }
+)
 
-export const createActivity = async (req: Request, res: Response) => {
+export const createActivity = catchErrors(async (req: Request, res: Response) => {
       
       const { name, description, capacity } = req.body
+
       if (!name || !description || !capacity) {
-            res.status(OK).json({ 
+            return res.status(CONFLICT).json({ 
                   message: "All fields are required" 
+            })
+      }
+
+      const existingActivity = await Activity.findOne({ name })
+      if (existingActivity) {
+            return res.status(CONFLICT).json({ 
+                  message: "Activity name already exists" 
             })
       }
 
@@ -31,53 +44,141 @@ export const createActivity = async (req: Request, res: Response) => {
             description, 
             capacity 
       })
+      const activityId = activity._id
       await activity.save()
 
-      res.status(OK).json(activity)
+      res.status(OK).json({_id: activityId})
 }
+)
 
-export const getActivity = async (req: Request, res: Response) => {
-      
-      const id = req.params.id
+export const getActivity = catchErrors(async (req: Request, res: Response) => {
+      const { id } = req.params
+
+      const validId = mongoose.Types.ObjectId.isValid(id)
+      if (!validId) {
+            return res.status(BAD_REQUEST).json({ 
+                  message: "Id not valid" 
+            })
+      }
+
       const activity = await Activity.findById(id)
       if (!activity) {
-            res.status(OK).json({ 
+            return res.status(OK).json({ 
                   message: "Activity not found" 
             })
       }
  
+      appAssert(activity, NOT_FOUND, 'Activity not found')
       res.status(OK).json(activity)
 }
+)
 
-export const updateActivity = async (req: Request, res: Response) => {  
-      
-      const id = req.params.id    
-      const existingActivity = await Activity.findById(id)
+export const subscribeActivity = catchErrors(async (req: Request, res: Response) => {  
+      const { id } = req.params  
+      const { name } = req.body 
+      if (!correct(id)) {
+            return res.status(BAD_REQUEST).json({ 
+                  message: "Id not valid" 
+            })
+      }
+
+      const activityName = name.toLowerCase()
+      const existingActivity = await Activity.findOne({
+            name: new RegExp(`^${activityName}$`, 'i')
+          })
+
       if (!existingActivity) {
-            res.status(NOT_FOUND).json({ 
+            return res.status(NOT_FOUND).json({ 
                   message: "Activity not found" 
             })
       }
 
-      const updatedActivity = await Activity.findByIdAndUpdate(id, req.body, { new: true })
-      if (!updatedActivity) {
-            res.status(NOT_FOUND).json({ 
-                  message: "There was a problem updating the activity" 
+      const subscriber = new mongoose.Types.ObjectId(id)
+      if (existingActivity.suscribers?.includes(subscriber)) {
+            return res.status(CONFLICT).json({
+                  message: "User already subscribed"
             })
       }
-
-      res.status(OK).json(updatedActivity)
-}
-
-export const deleteActivity = async (req: Request, res: Response) => {
       
-      const id = req.params.id
+      if (existingActivity.capacity === existingActivity.suscribers?.length) {
+            return res.status(CONFLICT).json({
+                  message: "Activity is full"
+            })
+      }
+
+      existingActivity.suscribers?.push(subscriber)
+      await existingActivity.save()
+
+
+      res.status(OK).json({
+            message: "User subscribed",
+            activity: existingActivity.name      
+      })
+})
+
+export const deleteActivity = catchErrors(async (req: Request, res: Response) => {
+      const { id } = req.params
+
+      const validId = mongoose.Types.ObjectId.isValid(id)
+      if (!validId) {
+            return res.status(BAD_REQUEST).json({ 
+                  message: "Id not valid" 
+            })
+      }
+      const activity = await Activity.findById(id)
+      if (!activity) {
+            return res.status(NOT_FOUND).json({
+                  message: "Activity not found",
+            })
+      }
+
       const deletedActivity = await Activity.findByIdAndDelete(id)
-      if (!deletedActivity) {
-            res.status(NOT_FOUND).json({ 
+      const activityID = deletedActivity?._id
+
+      appAssert(activityID, BAD_REQUEST, 'Activity not deleted')
+
+      res.status(OK).json(activityID)
+}
+)
+
+export const unSubscribeActivity = catchErrors(async (req: Request, res: Response) => {
+      const { id } = req.params  
+      const { name } = req.body 
+      if (!correct(id)) {
+            return res.status(BAD_REQUEST).json({ 
+                  message: "Id not valid" 
+            })
+      }
+
+      const activityName = name.toLowerCase()
+      const existingActivity = await Activity.findOne({
+            name: new RegExp(`^${activityName}$`, 'i')
+          })
+
+      if (!existingActivity) {
+            return res.status(NOT_FOUND).json({ 
                   message: "Activity not found" 
             })
       }
 
-      res.status(OK).json(deletedActivity)
-}
+      const unSubscriber = new mongoose.Types.ObjectId(id)
+
+      const indexOf = existingActivity.suscribers?.indexOf(unSubscriber)
+      if (indexOf === undefined) {
+             return res.status(CONFLICT).json({
+                  message: "User not found"
+            })
+      }else if (indexOf === -1) {
+            return res.status(CONFLICT).json({
+                  message: "User not subscribed"
+            })
+      }
+
+      const unSubscribed = existingActivity.suscribers?.splice(indexOf, 1)
+      await existingActivity.save()
+
+      res.status(OK).json({
+            message: `User ${unSubscribed} has been unsubscribed from ${existingActivity.name}`, 
+      })
+
+})

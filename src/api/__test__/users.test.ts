@@ -20,7 +20,6 @@ beforeAll(async () => {
                   email: newEmail,
             })
       deleteTestId = response.body.userID
-      console.log(response.body)
 })
 
 afterAll(async () => {
